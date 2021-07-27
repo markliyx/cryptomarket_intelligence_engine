@@ -1,4 +1,5 @@
 import streamlit as st
+from streamlit_echarts import st_echarts
 import numpy as np 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -13,10 +14,16 @@ st.set_page_config(layout="wide")
 # adding tittle & markdown 
 st.title('Cryptocurrency Market Intelligence')
 st.markdown(''' 
-A simple webapp that retrieves most updated cryptocurrencies/ exchanges information and generates the most 
-relevant graphical illustrations at your fingertip
+Built by MTX Group Strategy Team
 ''')
-
+#------------------ about -------------------#
+expander_bar = st.beta_expander("About")
+expander_bar.markdown("""
+* **Data source:** [CoinMarketCap](http://coinmarketcap.com).
+* A simple webapp that retrieves most updated cryptocurrencies/ exchanges information and generates the most 
+relevant graphical illustrations at your fingertip.
+""")
+#------------------ about -------------------#
 # sidebar widgets 
 menu_selectbox = st.sidebar.selectbox(
     "Menu",
@@ -115,30 +122,65 @@ def load_data_exchange():
       number_of_coins.append(i['numCoins'])
       number_of_fiats_supported.append(len(i['fiats']))
 
-    df = pd.DataFrame(columns=['exchange_name', 'score', 'volume_24h', 
-    'percent_volume_change_7d', 'average_liquidity', 'weekly_visits',
-     'markets','number_of_coins', 'number_of_fiats_supported'])
-    df['exchange_name'] = exchange_name
-    df['score'] = score
-    df['volume_24h'] = volume_24h
-    df['percent_volume_change_7d'] = percent_volume_change_7d
-    df['average_liquidity'] = average_liquidity
-    df['weekly_visits'] = weekly_visits
-    df['markets'] = markets
-    df['number_of_coins'] = number_of_coins
-    df['number_of_fiats_supported'] = number_of_fiats_supported
+    df = pd.DataFrame()
+    df['Exchange Name'] = exchange_name
+    df['Score'] = score
+    df['Volume 24 Hours'] = volume_24h
+    df['% Change 7 Days'] = percent_volume_change_7d
+    df['Average Liquidity'] = average_liquidity
+    df['Weekly Visits'] = weekly_visits
+    df['Markets'] = markets
+    df['Number of Coins'] = number_of_coins
+    df['Number of Fiats Supported'] = number_of_fiats_supported
     return df
 
-# build charts
+# build charts using echarts library
 def build_pie_charts(df, title, name):
     sorted_df = df.sort_values(title, ascending=False)[:10]
-    fig, ax = plt.subplots()
-    ax.pie(sorted_df[title], labels=sorted_df[name], radius=0.8)
-    st.pyplot(fig)
+    other_df = pd.DataFrame(columns=[title],data=df[[title]].sort_values(title, ascending=False)[10:].sum())
+    other_df[name] = 'other'
+    sorted_df = pd.concat([sorted_df, other_df]).sort_values(title, ascending=False)
+    
+    # input data in options
+    data = pd.DataFrame()
+    data[['value', 'name']] = df[[title, name]]
+    data = list(data.T.to_dict().values())
+    options = {
+        "title": {
+            "text": title, 
+            "textStyle": {
+                "fontWeight": 'normal',             
+                "color":'#FFFFFF'
+                },
+            "left": "center"},
+        "tooltip": {"trigger": "item"},
+        "legend": {"orient": "vertical", "left": "left",
+                "textStyle": {
+                "fontWeight": 'normal',             
+                "color":'#FFFFFF'
+                }},
+            "series": [
+        {
+            "name": name,
+            "type": "pie",
+            "radius": "50%",
+            "data": data,
+            "emphasis": {
+                "itemStyle": {
+                    "shadowBlur": 10,
+                    "shadowOffsetX": 0,
+                    "shadowColor": "rgba(0, 0, 0, 0.5)",
+                }
+            },
+        }
+    ],
+    }
+    st_echarts(options=options, height="600px")
+
 
 # build currency pie charts 
 def build_currency_pie_charts(cols, df_currency):
-    fig, axes = plt.subplots(ncols=4, figsize=(35, 10))
+    fig, axes = plt.subplots(ncols=len(cols), figsize=(35, 10))
     cols = cols
     n = 0
     for ax in axes:
@@ -152,26 +194,47 @@ def build_currency_pie_charts(cols, df_currency):
         ax.axis('equal')
         n += 1
     fig
+
+# build exchanges pie charts 
+def build_exchange_pie_charts(cols, exchange_df):
+    fig, axes = plt.subplots(ncols=len(cols), figsize=(35,10))
+    cols = cols
+    n = 0
+    for ax in axes:
+        i = cols[n]
+        ax.title.set_text(i)
+        sorted_df = exchange_df.sort_values(i, ascending=False)[:10]
+        if n < 2:
+            other_df = pd.DataFrame(columns=[i],data=exchange_df[[i]].sort_values(i, ascending=False)[10:].sum())
+            other_df['Exchange Name'] = 'other'
+            sorted_df = pd.concat([sorted_df, other_df]).sort_values(i, ascending=False)
+        df_pie_plot = ax.pie(sorted_df[i], labels=sorted_df['Exchange Name'], autopct='%.2f')
+        #ax.axis('equal')
+        n += 1
+    st.write(fig)
+
 # exchange page 
 def build_exchange_page():
     with col1: 
         # build basic info and table 
         exchange_df = load_data_exchange()
-        exchange_df = exchange_df.sort_values(by="score", ascending=False).head(n=number_of_item_slider)
+        exchange_df = exchange_df.sort_values(by="Score", ascending=False).head(n=number_of_item_slider)
         st.header("Exchanges")
         st.write(exchange_df)
+    
+    exchange_pie_charts_multiselect = st.sidebar.multiselect(
+        "Currency Pie Charts",
+        ['Volume 24 Hours', 'Weekly Visits', 'Average Liquidity','Number of Coins', 'Markets'], 
+        default= ['Weekly Visits', 'Volume 24 Hours']
+    )
 
-        # build charts multiselect box
-        with st.beta_container():
-            for title in charts_multiselect:
-                build_pie_charts(exchange_df, title, "exchange_name")
+    # build charts multiselect box
+    with st.beta_container():
+        for title in exchange_pie_charts_multiselect:
+            build_pie_charts(exchange_df, title, 'Exchange Name')
 
 # currency page
 def build_currency_page():
-    currency_pie_charts_multiselect = st.sidebar.multiselect(
-        "Currency Pie Charts",
-        ['Market Cap', 'Volume 24 Hours', 'Volume 7 Days', 'Volume 30 Days']
-    )
     with col1: 
         if currency_selectbox == 'USD':
             currency_df = load_data_currency(2)
@@ -182,16 +245,24 @@ def build_currency_page():
         currency_df = currency_df.sort_values(by="Market Cap", ascending=False).head(n=number_of_item_slider)
         st.header("Currencies")
         st.write(currency_df)
-       
-        # build charts multiselect box
-        with st.beta_container():
-            build_currency_pie_charts(currency_pie_charts_multiselect, currency_df)
+
+    currency_pie_charts_multiselect = st.sidebar.multiselect(
+        "Currency Pie Charts",
+        ['Market Cap', 'Volume 24 Hours', 'Volume 7 Days', 'Volume 30 Days'], 
+        default= ['Market Cap', 'Volume 30 Days']
+    )
+
+    # build charts multiselect box 
+    with st.beta_container():
+        for title in currency_pie_charts_multiselect:
+            build_pie_charts(currency_df, title, 'Coin Name')
+        
 
 
 #--------- *functions --------#
 #--------- column 2 ----------#
 with col2:
-    st.header("Top 10 Highest Priced Coins")
+    st.header("Top 10 Priced Coins")
     if currency_selectbox == 'USD':
         coin_price_df = load_data_currency(2)
     elif currency_selectbox == 'BTC': 
