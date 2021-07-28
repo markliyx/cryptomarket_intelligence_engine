@@ -14,26 +14,20 @@ st.set_page_config(layout="wide")
 # adding tittle & markdown 
 st.title('Cryptocurrency Market Intelligence')
 st.markdown(''' 
-Built by MTX Group Strategy Team
+Built by MTX Group Strategy Team 
 ''')
 #------------------ about -------------------#
-expander_bar = st.beta_expander("About")
+expander_bar = st.beta_expander("About", expanded=True)
 expander_bar.markdown("""
 * **Data source:** [CoinMarketCap](http://coinmarketcap.com).
 * A simple webapp that retrieves most updated cryptocurrencies/ exchanges information and generates the most 
 relevant graphical illustrations at your fingertip.
 """)
-#------------------ about -------------------#
+#------------------ *about -------------------#
 # sidebar widgets 
 menu_selectbox = st.sidebar.selectbox(
     "Menu",
     ("Exchanges", "Currencies")
-)
-
-number_of_item_slider = st.sidebar.slider(
-    "Number of Items",
-    min_value=10,
-    max_value=300
 )
 
 currency_selectbox = st.sidebar.selectbox(
@@ -110,6 +104,7 @@ def load_data_exchange():
     markets = []
     number_of_coins = []
     number_of_fiats_supported = []
+    marketShare = []
 
     for i in listings:
       exchange_name.append(i['name'])
@@ -121,29 +116,32 @@ def load_data_exchange():
       markets.append(i['numMarkets'])
       number_of_coins.append(i['numCoins'])
       number_of_fiats_supported.append(len(i['fiats']))
+      marketShare.append(i.get('marketSharePct', 0))
 
     df = pd.DataFrame()
     df['Exchange Name'] = exchange_name
     df['Score'] = score
-    df['Volume 24 Hours'] = volume_24h
+    df['Transaction Volume 24 Hours'] = volume_24h
     df['% Change 7 Days'] = percent_volume_change_7d
     df['Average Liquidity'] = average_liquidity
     df['Weekly Visits'] = weekly_visits
     df['Markets'] = markets
     df['Number of Coins'] = number_of_coins
     df['Number of Fiats Supported'] = number_of_fiats_supported
+    df['Market Share Prediction'] = marketShare
     return df
 
 # build charts using echarts library
 def build_pie_charts(df, title, name):
     sorted_df = df.sort_values(title, ascending=False)[:10]
+    sorted_df = sorted_df[[name, title]]
     other_df = pd.DataFrame(columns=[title],data=df[[title]].sort_values(title, ascending=False)[10:].sum())
     other_df[name] = 'other'
-    sorted_df = pd.concat([sorted_df, other_df]).sort_values(title, ascending=False)
-    
+    sorted_df = sorted_df.append(other_df, ignore_index=True).sort_values(title, ascending=False)
+
     # input data in options
     data = pd.DataFrame()
-    data[['value', 'name']] = df[[title, name]]
+    data[['value', 'name']] = sorted_df[[title, name]]
     data = list(data.T.to_dict().values())
     options = {
         "title": {
@@ -215,43 +213,79 @@ def build_exchange_pie_charts(cols, exchange_df):
 
 # exchange page 
 def build_exchange_page():
+    # loading data 
+    exchange_df = load_data_exchange()
+
+    # building sidebar 
+    exchange_pie_charts_multiselect = st.sidebar.multiselect(
+        "Currency Pie Charts",
+        ['Transaction Volume 24 Hours', 'Weekly Visits', 'Market Share Prediction'], 
+        default= ['Weekly Visits']
+    )
+
+    number_of_item_slider = st.sidebar.slider(
+        "Number of Items",
+        min_value=5,
+        max_value=len(exchange_df.index)
+    )
+
+
+    
+    # in left column
     with col1: 
         # build basic info and table 
-        exchange_df = load_data_exchange()
         exchange_df = exchange_df.sort_values(by="Score", ascending=False).head(n=number_of_item_slider)
         st.header("Exchanges")
         st.write(exchange_df)
     
-    exchange_pie_charts_multiselect = st.sidebar.multiselect(
-        "Currency Pie Charts",
-        ['Volume 24 Hours', 'Weekly Visits', 'Average Liquidity','Number of Coins', 'Markets'], 
-        default= ['Weekly Visits', 'Volume 24 Hours']
-    )
-
-    # build charts multiselect box
+    #------------------ section: pie charts -------------------#
+    expander_bar = st.beta_expander("Exchange Pie Charts")
+    expander_bar.markdown("""
+    * **Library Source:** [Streamlit ECharts](https://share.streamlit.io/andfanilo/streamlit-echarts-demo/master/app.py).
+    * Market Intellignece presented using pie charts
+    """)
+    #------------------ *section: pie charts -------------------#
+    # build charts from multiselect box
     with st.beta_container():
         for title in exchange_pie_charts_multiselect:
             build_pie_charts(exchange_df, title, 'Exchange Name')
 
 # currency page
 def build_currency_page():
-    with col1: 
-        if currency_selectbox == 'USD':
-            currency_df = load_data_currency(2)
-        elif currency_selectbox == 'BTC': 
-            currency_df = load_data_currency(0)
-        elif currency_selectbox == 'ETH':
-            currency_df = load_data_currency(1)
-        currency_df = currency_df.sort_values(by="Market Cap", ascending=False).head(n=number_of_item_slider)
-        st.header("Currencies")
-        st.write(currency_df)
-
+    # loading data 
+    if currency_selectbox == 'USD':
+        currency_df = load_data_currency(2)
+    elif currency_selectbox == 'BTC': 
+        currency_df = load_data_currency(0)
+    elif currency_selectbox == 'ETH':
+        currency_df = load_data_currency(1)
+    
+    # building sidebar 
     currency_pie_charts_multiselect = st.sidebar.multiselect(
         "Currency Pie Charts",
         ['Market Cap', 'Volume 24 Hours', 'Volume 7 Days', 'Volume 30 Days'], 
         default= ['Market Cap', 'Volume 30 Days']
     )
 
+    number_of_item_slider = st.sidebar.slider(
+        "Number of Items",
+        min_value=5,
+        max_value=len(currency_df.index)
+    )
+
+    # in left column
+    with col1: 
+        currency_df = currency_df.sort_values(by="Market Cap", ascending=False).head(n=number_of_item_slider)
+        st.header("Currencies")
+        st.write(currency_df)
+
+    #------------------ section: pie charts -------------------#
+    expander_bar = st.beta_expander("Currency Pie Charts")
+    expander_bar.markdown("""
+    * **:Library Source:** [Streamlit ECharts](https://share.streamlit.io/andfanilo/streamlit-echarts-demo/master/app.py).
+    * Market Intellignece presented using pie charts
+    """)
+    #------------------ *section: pie charts -------------------#
     # build charts multiselect box 
     with st.beta_container():
         for title in currency_pie_charts_multiselect:
