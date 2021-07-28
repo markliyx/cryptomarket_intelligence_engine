@@ -1,5 +1,7 @@
 import streamlit as st
+import altair as alt
 from streamlit_echarts import st_echarts
+from streamlit_vega_lite import vega_lite_component, altair_component
 import numpy as np 
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -122,7 +124,7 @@ def load_data_exchange():
     df['Exchange Name'] = exchange_name
     df['Score'] = score
     df['Transaction Volume 24 Hours'] = volume_24h
-    df['% Change 7 Days'] = percent_volume_change_7d
+    df['% Transaction Change 7 Days'] = percent_volume_change_7d
     df['Average Liquidity'] = average_liquidity
     df['Weekly Visits'] = weekly_visits
     df['Markets'] = markets
@@ -132,10 +134,10 @@ def load_data_exchange():
     return df
 
 # build charts using echarts library
-def build_pie_charts(df, title, name):
-    sorted_df = df.sort_values(title, ascending=False)[:10]
+def build_pie_charts(df, title, name, no_of_items):
+    sorted_df = df.sort_values(title, ascending=False)[:no_of_items]
     sorted_df = sorted_df[[name, title]]
-    other_df = pd.DataFrame(columns=[title],data=df[[title]].sort_values(title, ascending=False)[10:].sum())
+    other_df = pd.DataFrame(columns=[title],data=df[[title]].sort_values(title, ascending=False)[no_of_items:].sum())
     other_df[name] = 'other'
     sorted_df = sorted_df.append(other_df, ignore_index=True).sort_values(title, ascending=False)
 
@@ -175,6 +177,27 @@ def build_pie_charts(df, title, name):
     }
     st_echarts(options=options, height="600px")
 
+# build frequency distribution using streamlit vega lite
+def build_frequency_distribution(df, title, name):
+    #hist_data = pd.DataFrame(np.random.normal(42, 10, (200, 1)), columns=["x"])
+    hist_data = df[[title, name]]
+    @st.cache
+    def altair_histogram():
+        brushed = alt.selection_interval(encodings=['x'], name="brushed")
+
+        return (
+            alt.Chart(hist_data)
+            .mark_bar()
+            .encode(alt.X(title, bin=True), y="count()")
+            .add_selection(brushed)
+        )
+
+    event_dict = altair_component(altair_chart=altair_histogram())
+
+    r = event_dict.get(title)
+    if r:
+        filtered = hist_data[(hist_data[title] >= r[0]) & (hist_data[title] < r[1])]
+        st.write(filtered)
 
 # build currency pie charts 
 def build_currency_pie_charts(cols, df_currency):
@@ -223,12 +246,27 @@ def build_exchange_page():
         default= ['Weekly Visits']
     )
 
-    number_of_item_slider = st.sidebar.slider(
-        "Number of Items",
-        min_value=5,
-        max_value=len(exchange_df.index)
+    frequency_distribution_multiselect = st.sidebar.multiselect(
+        "Frequency Distribution Features",
+        ['Transaction Volume 24 Hours', 'Weekly Visits', 'Market Share Prediction', 
+        '% Transaction Change 7 Days', 'Average Liquidity', 'Markets', 'Number of Coins', 
+        'Number of Fiats Supported', 'Market Share Prediction'], 
+        default= ['Weekly Visits', 'Average Liquidity', 'Number of Coins']
     )
 
+    number_of_item_slider = st.sidebar.slider(
+        "Number of Items (Ordered by Score)",
+        min_value=5,
+        max_value=len(exchange_df.index),
+        value=len(exchange_df.index)
+    )
+
+    top_items_slider = st.sidebar.slider(
+        "Top n Items For Charts",
+        min_value=1,
+        max_value=len(exchange_df.index),
+        value=10
+    )
 
     
     # in left column
@@ -248,7 +286,19 @@ def build_exchange_page():
     # build charts from multiselect box
     with st.beta_container():
         for title in exchange_pie_charts_multiselect:
-            build_pie_charts(exchange_df, title, 'Exchange Name')
+            build_pie_charts(exchange_df, title, 'Exchange Name', top_items_slider)
+    
+    #------------------ section: distributions -------------------#
+    expander_bar = st.beta_expander("Exchange Frequency Distributions")
+    expander_bar.markdown("""
+    * **Library Source:** [Streamlit Vega Lite](https://github.com/domoritz/streamlit-vega-lite).
+    * Market Intellignece presented using Frequency Distributions
+    """)
+    #------------------ *section: distributions -------------------#
+        # build charts from multiselect box
+    with st.beta_container():
+        for title in frequency_distribution_multiselect:
+            build_frequency_distribution(exchange_df, title=title, name='Exchange Name')
 
 # currency page
 def build_currency_page():
@@ -267,10 +317,25 @@ def build_currency_page():
         default= ['Market Cap', 'Volume 30 Days']
     )
 
+    frequency_distribution_multiselect = st.sidebar.multiselect(
+        "Frequency Distribution Features",
+        ['Price', 'Market Cap', '% Change 24 Hours', '% Change 7 Days', 'Volume 24 Hours', 
+        'Volume 7 Days', 'Volume 30 Days'], 
+        default= ['Price', 'Market Cap', 'Volume 30 Days']
+    )
+
     number_of_item_slider = st.sidebar.slider(
-        "Number of Items",
+        "Number of Items (Ordered by MarketCap)",
         min_value=5,
-        max_value=len(currency_df.index)
+        max_value=len(currency_df.index), 
+        value=len(currency_df.index)
+    )
+
+    top_items_slider = st.sidebar.slider(
+        "Top n Items For Charts",
+        min_value=1,
+        max_value=len(currency_df.index),
+        value=10
     )
 
     # in left column
@@ -289,7 +354,20 @@ def build_currency_page():
     # build charts multiselect box 
     with st.beta_container():
         for title in currency_pie_charts_multiselect:
-            build_pie_charts(currency_df, title, 'Coin Name')
+            build_pie_charts(currency_df, title, 'Coin Name', top_items_slider)
+
+    #------------------ section: distributions -------------------#
+    expander_bar = st.beta_expander("Currency Frequency Distributions")
+    expander_bar.markdown("""
+    * **Library Source:** [Streamlit Vega Lite](https://github.com/domoritz/streamlit-vega-lite).
+    * Market Intellignece presented using Frequency Distributions
+    """)
+    #------------------ *section: distributions -------------------#
+        # build charts from multiselect box
+    with st.beta_container():
+        for title in frequency_distribution_multiselect:
+            build_frequency_distribution(currency_df, title=title, name='Coin Name')
+    
         
 
 
