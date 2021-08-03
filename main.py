@@ -46,7 +46,6 @@ col1, col2 = st.beta_columns([3,1])
 #--------- functions --------#
 
 # currency scrapper 
-currency_price_unit = 'USD'
 @st.cache
 def load_data_currency(currency):
     cmc = requests.get('https://coinmarketcap.com')
@@ -67,16 +66,16 @@ def load_data_currency(currency):
     volume_30d = []
 
     for i in listings:
-      coin_name.append(i['p_1'])
-      coin_symbol.append(i['p_2'])
+      coin_name.append(i['name'])
+      coin_symbol.append(i['symbol'])
       #print(i['p_17'][2])
-      price.append(i['p_17'][currency]['1'])
-      percent_change_24h.append(i['p_17'][currency]['7'])
-      percent_change_7d.append(i['p_17'][currency]['8'])
-      market_cap.append(i['p_17'][currency]['5'])
-      volume_24h.append(i['p_17'][currency]['2'])
-      volume_7d.append(i['p_17'][currency]['3'])
-      volume_30d.append(i['p_17'][currency]['4'])
+      price.append(i['quotes'][currency]['price'])
+      percent_change_24h.append(i['quotes'][currency]['percentChange24h'])
+      percent_change_7d.append(i['quotes'][currency]['percentChange7d'])
+      market_cap.append(i['quotes'][currency]['fullyDilluttedMarketCap'])
+      volume_24h.append(i['quotes'][currency]['volume24h'])
+      volume_7d.append(i['quotes'][currency]['volume7d'])
+      volume_30d.append(i['quotes'][currency]['volume30d'])
     df = pd.DataFrame()
     df['Coin Name'] = coin_name
     df['Coin Symbol'] = coin_symbol
