@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import requests
+import emoji 
 from bs4 import BeautifulSoup
 import json
 
@@ -185,9 +186,8 @@ def build_pie_charts(df, title, name, no_of_items):
     st_echarts(options=options, height="600px")
 
 # build frequency distribution using streamlit vega lite
-def build_frequency_distribution(df, title, name, sort):
+def build_frequency_distribution(df, title, name, sort, currency):
     #hist_data = pd.DataFrame(np.random.normal(42, 10, (200, 1)), columns=["x"])
-    col1, col2, col3 = st.beta_columns([5, 3, 2])
     hist_data = df[[title, name, sort]]
     @st.cache
     def altair_histogram():
@@ -203,55 +203,59 @@ def build_frequency_distribution(df, title, name, sort):
                 color='red'
             )
         )
-    
+    st.header("Frequency Distribution of - " + title)
     event_dict = altair_component(altair_chart=altair_histogram())
 
     r = event_dict.get(title)
+    col1, col2 = st.beta_columns([6,4])
     if r:
         with col1: 
             filtered = hist_data[(hist_data[title] >= r[0]) & (hist_data[title] < r[1])]
             st.write(filtered)
         with col2: 
+            # defining local color scheme
+            yellow = "#FFFF85"
+            blue = "#8ef"
+            green = "#ADF598"
+
             #towrite = "*There are a total of* " + str(len(filtered.index)) + " *items*"
-            #st.header(towrite)
-            annotated_text("There are a total of ",  (str(len(filtered.index)), "how many items", "#8ef"), " items")
+            st.header(emoji.emojize("Heyy! Here's a little more insight about your selection :stuck_out_tongue_winking_eye:"))
+            annotated_text("There are a total of ",  (str(len(filtered.index)), "number", blue), 
+                " items in this range, and the top ", ("3", "number", blue), " items ranked by ", (sort, "rank method", yellow), " are as following: ") 
+            if len(filtered.index) >= 3: 
+                annotated_text(
+                (filtered.iloc[[0]][name], name, green), " with a ", sort, " of ", (filtered.iloc[[0]][sort], currency, yellow), 
+                ", ",
+                (filtered.iloc[[1]][name], name, green), " with a ", sort, " of ", (filtered.iloc[[1]][sort], currency, yellow),
+                ", ",  
+                (filtered.iloc[[2]][name], name, green), " with a ", sort, " of ", (filtered.iloc[[2]][sort], currency, yellow))
+            elif len(filtered.index) == 2: 
+                annotated_text(
+                (filtered.iloc[[0]][name], name, green), " with a ", sort, " of ", (filtered.iloc[[0]][sort], currency, yellow), 
+                ", ",  
+                (filtered.iloc[[1]][name], name, green), " with a ", sort, " of ", (filtered.iloc[[1]][sort], currency, yellow))
+            elif len(filtered.index) == 1:
+                annotated_text(
+                (filtered.iloc[[0]][name], name, green), " with a ", sort, " of ", (filtered.iloc[[0]][sort], currency, yellow))
 
-# build currency pie charts 
-def build_currency_pie_charts(cols, df_currency):
-    fig, axes = plt.subplots(ncols=len(cols), figsize=(35, 10))
-    cols = cols
-    n = 0
-    for ax in axes:
-        i = cols[n]
-        ax.set_title(i)
-        other_df = pd.DataFrame(columns=[i],data=df_currency[[i]].sort_values(i, ascending=False)[10:].sum())
-        other_df['Coin Name'] = 'other'
-        sorted_df = df_currency.sort_values(i, ascending=False)[:10]
-        sorted_df = pd.concat([sorted_df, other_df]).sort_values(i, ascending=False)
-        df_pie_plot = ax.pie(sorted_df[i], labels=sorted_df['Coin Name'], autopct='%.2f')
-        ax.axis('equal')
-        n += 1
-    fig
-
-# build exchanges pie charts 
-def build_exchange_pie_charts(cols, exchange_df):
-    fig, axes = plt.subplots(ncols=len(cols), figsize=(35,10))
-    cols = cols
-    n = 0
-    for ax in axes:
-        i = cols[n]
-        ax.title.set_text(i)
-        sorted_df = exchange_df.sort_values(i, ascending=False)[:10]
-        if n < 2:
-            other_df = pd.DataFrame(columns=[i],data=exchange_df[[i]].sort_values(i, ascending=False)[10:].sum())
-            other_df['Exchange Name'] = 'other'
-            sorted_df = pd.concat([sorted_df, other_df]).sort_values(i, ascending=False)
-        df_pie_plot = ax.pie(sorted_df[i], labels=sorted_df['Exchange Name'], autopct='%.2f')
-        #ax.axis('equal')
-        n += 1
-    st.write(fig)
-
-# exchange page 
+# build pie charts expandbar
+def build_pie_expandbar(title):
+    expander_bar = st.beta_expander(title + " Pie Charts")
+    expander_bar.markdown("""
+    * **Library Source:** [Streamlit ECharts](https://share.streamlit.io/andfanilo/streamlit-echarts-demo/master/app.py).
+    * Market Intellignece presented using pie charts
+    """)
+    
+# build frequency distribution expandbar
+def build_frequency_distribution_expandbar(title):
+    distribution_expander_bar = st.beta_expander(title + " Frequency Distributions", expanded=True)
+    distribution_expander_bar.markdown("""
+    * **Library Source:** [Streamlit Vega Lite](https://github.com/domoritz/streamlit-vega-lite).
+    * Market Intellignece presented using Frequency Distributions
+    """)
+    distribution_expander_bar.markdown(emoji.emojize("* Here's how to use the interactive charts :arrow_down: :"))
+    distribution_expander_bar.markdown("![Alt Text](https://media.giphy.com/media/TdZuiBwbLT883TOa2A/giphy.gif)")
+# build exchange page 
 def build_exchange_page():
     # loading data 
     exchange_df = load_data_exchange()
@@ -294,11 +298,7 @@ def build_exchange_page():
         st.write(exchange_df)
     
     #------------------ section: pie charts -------------------#
-    expander_bar = st.beta_expander("Exchange Pie Charts")
-    expander_bar.markdown("""
-    * **Library Source:** [Streamlit ECharts](https://share.streamlit.io/andfanilo/streamlit-echarts-demo/master/app.py).
-    * Market Intellignece presented using pie charts
-    """)
+    build_pie_expandbar("Exchange")
     #------------------ *section: pie charts -------------------#
     # build charts from multiselect box
     with st.beta_container():
@@ -306,18 +306,15 @@ def build_exchange_page():
             build_pie_charts(exchange_df, title, 'Exchange Name', top_items_slider)
     
     #------------------ section: distributions -------------------#
-    expander_bar = st.beta_expander("Exchange Frequency Distributions")
-    expander_bar.markdown("""
-    * **Library Source:** [Streamlit Vega Lite](https://github.com/domoritz/streamlit-vega-lite).
-    * Market Intellignece presented using Frequency Distributions
-    """)
+    build_frequency_distribution_expandbar("Exchange")
+
     #------------------ *section: distributions -------------------#
         # build charts from multiselect box
     with st.beta_container():
         for title in frequency_distribution_multiselect:
-            build_frequency_distribution(exchange_df, title=title, name='Exchange Name', sort='Score')
+            build_frequency_distribution(exchange_df, title=title, name='Exchange Name', sort='Score', currency="USD")
 
-# currency page
+# build currency page
 def build_currency_page():
     # loading data 
     if currency_selectbox == 'USD':
@@ -362,11 +359,7 @@ def build_currency_page():
         st.write(currency_df)
 
     #------------------ section: pie charts -------------------#
-    expander_bar = st.beta_expander("Currency Pie Charts")
-    expander_bar.markdown("""
-    * **:Library Source:** [Streamlit ECharts](https://share.streamlit.io/andfanilo/streamlit-echarts-demo/master/app.py).
-    * Market Intellignece presented using pie charts
-    """)
+    build_pie_expandbar("Currency")
     #------------------ *section: pie charts -------------------#
     # build charts multiselect box 
     with st.beta_container():
@@ -374,19 +367,12 @@ def build_currency_page():
             build_pie_charts(currency_df, title, 'Coin Name', top_items_slider)
 
     #------------------ section: distributions -------------------#
-    expander_bar = st.beta_expander("Currency Frequency Distributions")
-    expander_bar.markdown("""
-    * **Library Source:** [Streamlit Vega Lite](https://github.com/domoritz/streamlit-vega-lite).
-    * Market Intellignece presented using Frequency Distributions
-    """)
+    build_frequency_distribution_expandbar("Currency")
     #------------------ *section: distributions -------------------#
         # build charts from multiselect box
     with st.beta_container():
         for title in frequency_distribution_multiselect:
-            build_frequency_distribution(currency_df, title=title, name='Coin Name', sort='Market Cap')
-    
-        
-
+            build_frequency_distribution(currency_df, title=title, name='Coin Name', sort='Market Cap', currency=currency_selectbox)
 
 #--------- *functions --------#
 #--------- column 2 ----------#
