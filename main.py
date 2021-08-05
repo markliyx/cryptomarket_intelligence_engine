@@ -1,3 +1,4 @@
+from re import search
 import streamlit as st
 import altair as alt
 from streamlit_echarts import st_echarts
@@ -6,6 +7,7 @@ from annotated_text import annotated_text
 import numpy as np 
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
 import requests
 import emoji 
 from bs4 import BeautifulSoup
@@ -14,11 +16,10 @@ import json
 #---------- changing page setting -----------#
 st.set_page_config(layout="wide")
 #--------------------------------------------#
-
 # adding tittle & markdown 
 st.title('Cryptocurrency Market Intelligence')
 st.markdown(''' 
-Built by MTX Group Strategy Team 
+Built by Mark Li 
 ''')
 #------------------ about -------------------#
 expander_bar = st.beta_expander("About", expanded=True)
@@ -43,6 +44,24 @@ currency_selectbox = st.sidebar.selectbox(
 
 # divide page into columns
 col1, col2 = st.beta_columns([3,1])
+
+#------defining gloabl color variables ------#
+yellow = "#FFFF85"
+blue = "#8ef"
+green = "#ADF598"
+purple = "#F3C4FF"
+white = "#FFFFFF"
+
+#-----*defining gloabl color variables ------#
+
+#-------helper functions------#
+def is_numeric(s): 
+    try: 
+        float(s)
+        return True
+    except ValueError: 
+        return False
+#------*helper functions------#
 
 #--------- functions --------#
 
@@ -158,7 +177,7 @@ def build_pie_charts(df, title, name, no_of_items):
             "text": title, 
             "textStyle": {
                 "fontWeight": 'normal',             
-                "color":'#FFFFFF'
+                "color": white
                 },
             "left": "center"},
         "tooltip": {"trigger": "item"},
@@ -203,7 +222,8 @@ def build_frequency_distribution(df, title, name, sort, currency):
                 color='red'
             )
         )
-    st.header("Frequency Distribution of - " + title)
+    #st.subheader("Frequency Distribution of - " + title)
+    annotated_text("Frequency Distribution of ", (title, "feature", purple))
     event_dict = altair_component(altair_chart=altair_histogram())
 
     r = event_dict.get(title)
@@ -213,13 +233,8 @@ def build_frequency_distribution(df, title, name, sort, currency):
             filtered = hist_data[(hist_data[title] >= r[0]) & (hist_data[title] < r[1])]
             st.write(filtered)
         with col2: 
-            # defining local color scheme
-            yellow = "#FFFF85"
-            blue = "#8ef"
-            green = "#ADF598"
-
             #towrite = "*There are a total of* " + str(len(filtered.index)) + " *items*"
-            st.header(emoji.emojize("Heyy! Here's a little more insight about your selection :stuck_out_tongue_winking_eye:"))
+            st.subheader(emoji.emojize("Heyy! Here's a little more insight about your selection :stuck_out_tongue_winking_eye:"))
             annotated_text("There are a total of ",  (str(len(filtered.index)), "number", blue), 
                 " items in this range, and the top ", ("3", "number", blue), " items ranked by ", (sort, "rank method", yellow), " are as following: ") 
             if len(filtered.index) >= 3: 
@@ -239,11 +254,10 @@ def build_frequency_distribution(df, title, name, sort, currency):
                 (filtered.iloc[[0]][name], name, green), " with a ", sort, " of ", (filtered.iloc[[0]][sort], currency, yellow))
 
 # build pie charts expandbar
-def build_pie_expandbar(title):
-    expander_bar = st.beta_expander(title + " Pie Charts")
+def build_pie_expandbar(name):
+    expander_bar = st.beta_expander(name + " Pie Charts")
     expander_bar.markdown("""
     * **Library Source:** [Streamlit ECharts](https://share.streamlit.io/andfanilo/streamlit-echarts-demo/master/app.py).
-    * Market Intellignece presented using pie charts
     """)
     
 # build frequency distribution expandbar
@@ -251,10 +265,61 @@ def build_frequency_distribution_expandbar(title):
     distribution_expander_bar = st.beta_expander(title + " Frequency Distributions", expanded=True)
     distribution_expander_bar.markdown("""
     * **Library Source:** [Streamlit Vega Lite](https://github.com/domoritz/streamlit-vega-lite).
-    * Market Intellignece presented using Frequency Distributions
     """)
     distribution_expander_bar.markdown(emoji.emojize("* Here's how to use the interactive charts :arrow_down: :"))
     distribution_expander_bar.markdown("![Alt Text](https://media.giphy.com/media/TdZuiBwbLT883TOa2A/giphy.gif)")
+
+# build sidebar items search select 
+def items_multiselect(df, name):
+    search_select = st.sidebar.multiselect(
+        "Search " + name, 
+        df[[name]], 
+        default=[]
+    )
+    return search_select
+
+# plotting correlation matrix
+def build_correlation_matrix(df, name): 
+    # build out multiselect bar
+    matrix_select = st.sidebar.multiselect(
+        "Select Correlation Features", 
+        df.columns.tolist(), 
+        default=df.columns.tolist()
+    )
+
+    if len(matrix_select) > 0:
+        # build out expandbar session 
+        expand_bar = st.beta_expander(name + " Correlation Matrix", expanded=True)
+        expand_bar.markdown("""
+        * **Function:** to visually evaluate how differnet feaures relates one another.
+        """)
+
+        # plotting the correlation table
+        corr = df.corr()
+        mask = np.triu(np.ones_like(corr, dtype=bool))
+        f, ax = plt.subplots(figsize=(20, 16))
+        cmap = sns.diverging_palette(230, 20, as_cmap=True)
+        sns.heatmap(corr, mask=mask, cmap=cmap, vmax=.3, center=0,
+                square=True, linewidths=.5, cbar_kws={"shrink": .5})
+        st.pyplot(f)
+
+# build number of items sidebar
+def build_number_of_items(df, index):
+    # select ordered by
+    ordered_by_select= st.sidebar.selectbox(
+        label="Ordered By",
+        options=df.columns.tolist(), 
+        index=index
+    )
+    # slider
+    number_of_item_slider = st.sidebar.slider(
+        "Number of Items (ordered by " + ordered_by_select + ")",
+        min_value=5,
+        max_value=len(df.index),
+        value=len(df.index)
+    )
+    return number_of_item_slider, ordered_by_select
+
 # build exchange page 
 def build_exchange_page():
     # loading data 
@@ -275,12 +340,7 @@ def build_exchange_page():
         default= ['Weekly Visits', 'Average Liquidity', 'Number of Coins']
     )
 
-    number_of_item_slider = st.sidebar.slider(
-        "Number of Items (Ordered by Score)",
-        min_value=5,
-        max_value=len(exchange_df.index),
-        value=len(exchange_df.index)
-    )
+    number_of_item_slider, ordered_by_select = build_number_of_items(exchange_df, 1)
 
     top_items_slider = st.sidebar.slider(
         "Top n Items For Charts",
@@ -288,17 +348,25 @@ def build_exchange_page():
         max_value=len(exchange_df.index),
         value=10
     )
-
-    
     # in left column
     with col1: 
         # build basic info and table 
-        exchange_df = exchange_df.sort_values(by="Score", ascending=False).head(n=number_of_item_slider)
+        if exchange_df.head(1)[ordered_by_select].dtypes == 'float64': 
+            exchange_df = exchange_df.sort_values(by=ordered_by_select, ascending=False).head(n=number_of_item_slider)
+        else: 
+            exchange_df = exchange_df.sort_values(by=ordered_by_select, ascending=True).head(n=number_of_item_slider)
+
         st.header("Exchanges")
         st.write(exchange_df)
-    
+
+    # building additional sidebar and poplulating search table
+    list_of_search = items_multiselect(exchange_df, "Exchange Name")
+    if len(list_of_search) > 0:
+        st.header("Search Result")
+        st.write(exchange_df[exchange_df["Exchange Name"].isin(list_of_search)])
     #------------------ section: pie charts -------------------#
-    build_pie_expandbar("Exchange")
+    if len(exchange_pie_charts_multiselect) > 0:
+        build_pie_expandbar("Exchange")
     #------------------ *section: pie charts -------------------#
     # build charts from multiselect box
     with st.beta_container():
@@ -306,14 +374,18 @@ def build_exchange_page():
             build_pie_charts(exchange_df, title, 'Exchange Name', top_items_slider)
     
     #------------------ section: distributions -------------------#
-    build_frequency_distribution_expandbar("Exchange")
+    if len(frequency_distribution_multiselect) > 0:
+        build_frequency_distribution_expandbar("Exchange")
 
     #------------------ *section: distributions -------------------#
         # build charts from multiselect box
     with st.beta_container():
         for title in frequency_distribution_multiselect:
             build_frequency_distribution(exchange_df, title=title, name='Exchange Name', sort='Score', currency="USD")
-
+    
+    #------------------ section: correlation matrix ---------------#
+    build_correlation_matrix(exchange_df, "Exchange Name")
+    #------------------ *section: correlation matrix --------------#
 # build currency page
 def build_currency_page():
     # loading data 
@@ -338,12 +410,7 @@ def build_currency_page():
         default= ['% Change 24 Hours', '% Change 7 Days', 'Price']
     )
 
-    number_of_item_slider = st.sidebar.slider(
-        "Number of Items (Ordered by MarketCap)",
-        min_value=5,
-        max_value=len(currency_df.index), 
-        value=len(currency_df.index)
-    )
+    number_of_item_slider, ordered_by_select = build_number_of_items(currency_df, 5)
 
     top_items_slider = st.sidebar.slider(
         "Top n Items For Charts",
@@ -354,12 +421,22 @@ def build_currency_page():
 
     # in left column
     with col1: 
-        currency_df = currency_df.sort_values(by="Market Cap", ascending=False).head(n=number_of_item_slider)
+        if currency_df.head(1)[ordered_by_select].dtypes == 'float64':
+            currency_df = currency_df.sort_values(by=ordered_by_select, ascending=False).head(n=number_of_item_slider)
+        else:
+            currency_df = currency_df.sort_values(by=ordered_by_select, ascending=True).head(n=number_of_item_slider)
         st.header("Currencies")
         st.write(currency_df)
+    
+    # building additional sidebar and poplulating search table
+    list_of_search = items_multiselect(currency_df, "Coin Name")
+    if len(list_of_search) > 0:
+        st.subheader("Search Result")
+        st.write(currency_df[currency_df["Coin Name"].isin(list_of_search)])
 
     #------------------ section: pie charts -------------------#
-    build_pie_expandbar("Currency")
+    if len(currency_pie_charts_multiselect) > 0:
+        build_pie_expandbar("Currency")
     #------------------ *section: pie charts -------------------#
     # build charts multiselect box 
     with st.beta_container():
@@ -367,13 +444,17 @@ def build_currency_page():
             build_pie_charts(currency_df, title, 'Coin Name', top_items_slider)
 
     #------------------ section: distributions -------------------#
-    build_frequency_distribution_expandbar("Currency")
+    if len(frequency_distribution_multiselect) > 0:
+        build_frequency_distribution_expandbar("Currency")
     #------------------ *section: distributions -------------------#
         # build charts from multiselect box
     with st.beta_container():
         for title in frequency_distribution_multiselect:
             build_frequency_distribution(currency_df, title=title, name='Coin Name', sort='Market Cap', currency=currency_selectbox)
-
+    
+    #------------------ section: correlation matrix ---------------#
+    build_correlation_matrix(currency_df, "Coin Name")
+    #------------------ *section: correlation matrix --------------#
 #--------- *functions --------#
 #--------- column 2 ----------#
 with col2:
