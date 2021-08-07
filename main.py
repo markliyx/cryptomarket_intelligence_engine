@@ -291,7 +291,7 @@ def build_correlation_matrix(df, name):
         # build out expandbar session 
         expand_bar = st.beta_expander(name + " Correlation Matrix", expanded=True)
         expand_bar.markdown("""
-        * **Function:** to visually evaluate how differnet feaures relates one another.
+        * **Function:** to visually evaluate how different features relates to one another.
         """)
 
         # plotting the correlation table
