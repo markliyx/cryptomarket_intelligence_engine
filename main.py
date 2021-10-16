@@ -1,4 +1,7 @@
 from re import search
+from requests import Request, Session
+from requests.exceptions import ConnectionError, Timeout, TooManyRedirects, HTTPError
+import json
 import streamlit as st
 import altair as alt
 from streamlit_echarts import st_echarts
@@ -73,7 +76,28 @@ def load_data_currency(currency):
 
     data = soup.find('script', id='__NEXT_DATA__', type='application/json')
     coin_data = json.loads(data.contents[0])
-    listings = coin_data['props']['initialState']['cryptocurrency']['listingLatest']['data']
+    listings = coin_data['props']['initialState']['cryptocurrency']['listingLatest']['data'][1:]
+    # url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
+    # parameters = {
+    # 'start':'1',
+    # 'limit':'5000',
+    # 'convert':'USDs'
+    # }
+    # headers = {
+    # 'Accepts': 'application/json',
+    # 'X-CMC_PRO_API_KEY': '069aea99-6377-4399-b163-dbcda1f7e6af',
+    # }
+
+    # session = Session()
+    # session.headers.update(headers)
+
+    # try:
+    #     response = session.get(url, params=parameters)
+    #     data = json.loads(response.text)
+    # except (ConnectionError, Timeout, TooManyRedirects) as e:
+    #     print(e)
+    
+    # listings = data['data']
 
     coin_name = []
     coin_symbol = []
@@ -86,16 +110,33 @@ def load_data_currency(currency):
     volume_30d = []
 
     for i in listings:
-      coin_name.append(i['name'])
-      coin_symbol.append(i['symbol'])
-      #print(i['p_17'][2])
-      price.append(i['quotes'][currency]['price'])
-      percent_change_24h.append(i['quotes'][currency]['percentChange24h'])
-      percent_change_7d.append(i['quotes'][currency]['percentChange7d'])
-      market_cap.append(i['quotes'][currency]['fullyDilluttedMarketCap'])
-      volume_24h.append(i['quotes'][currency]['volume24h'])
-      volume_7d.append(i['quotes'][currency]['volume7d'])
-      volume_30d.append(i['quotes'][currency]['volume30d'])
+        coin_name.append(i[15])
+        coin_symbol.append(i[126])
+        if currency == "USD":
+            price.append(i[64])
+            percent_change_24h.append(i[59])
+            percent_change_7d.append(i[62])
+            market_cap.append(i[55])
+            volume_24h.append(i[66])
+            volume_7d.append(i[68])
+            volume_30d.append(i[67])
+        elif currency == "BTC":
+            price.append(i[28])
+            percent_change_24h.append(i[23])
+            percent_change_7d.append(i[26])
+            market_cap.append(i[19])
+            volume_24h.append(i[30])
+            volume_7d.append(i[32])
+            volume_30d.append(i[31])
+        elif currency == "ETH":
+            price.append(i[46])
+            percent_change_24h.append(i[41])
+            percent_change_7d.append(i[44])
+            market_cap.append(i[37])
+            volume_24h.append(i[48])
+            volume_7d.append(i[50])
+            volume_30d.append(i[49])
+
     df = pd.DataFrame()
     df['Coin Name'] = coin_name
     df['Coin Symbol'] = coin_symbol
@@ -107,6 +148,7 @@ def load_data_currency(currency):
     df['Volume 7 Days'] = volume_7d
     df['Volume 30 Days'] = volume_30d
     return df
+
 
 # exchange scrapper 
 @st.cache
@@ -291,7 +333,7 @@ def build_correlation_matrix(df, name):
         # build out expandbar session 
         expand_bar = st.beta_expander(name + " Correlation Matrix", expanded=True)
         expand_bar.markdown("""
-        * **Function:** to visually evaluate how different features relates to one another.
+        * **Function:** to visually evaluate how different features relates one another.
         """)
 
         # plotting the correlation table
@@ -389,12 +431,7 @@ def build_exchange_page():
 # build currency page
 def build_currency_page():
     # loading data 
-    if currency_selectbox == 'USD':
-        currency_df = load_data_currency(2)
-    elif currency_selectbox == 'BTC': 
-        currency_df = load_data_currency(0)
-    elif currency_selectbox == 'ETH':
-        currency_df = load_data_currency(1)
+    currency_df = load_data_currency(currency_selectbox)
     
     # building sidebar 
     currency_pie_charts_multiselect = st.sidebar.multiselect(
@@ -459,12 +496,7 @@ def build_currency_page():
 #--------- column 2 ----------#
 with col2:
     st.header("Top 10 Priced Coins")
-    if currency_selectbox == 'USD':
-        coin_price_df = load_data_currency(2)
-    elif currency_selectbox == 'BTC': 
-        coin_price_df = load_data_currency(0)
-    elif currency_selectbox == 'ETH':
-        coin_price_df = load_data_currency(1)
+    coin_price_df = load_data_currency(currency_selectbox)
     coin_price_df = coin_price_df[["Coin Name", "Price"]].sort_values(by="Price", ascending=False).head(n=10)
     st.write(coin_price_df)
 
