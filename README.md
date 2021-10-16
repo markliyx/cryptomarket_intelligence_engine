@@ -10,8 +10,8 @@ providers are alert about keeping such barrier; thus, being a "no namer" in the 
 solution, mainly to satisfy my personal intellectual curiosity, using a special data science visualization library - streamlit. 
 
 ## Functions: 
-Data Fetching - Scraps and caches their most up-to-date data on cryptocurrencies and crpto-exchanges (BeautifulSoup)
-Sortable Data Table -  
+**Data Fetching** - Scraps and caches their most up-to-date data on cryptocurrencies and crpto-exchanges (BeautifulSoup)
+**Sortable Data Table** -  
 
 ## Deomonstration: 
 
