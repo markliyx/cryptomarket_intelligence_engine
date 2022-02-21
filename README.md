@@ -1,5 +1,4 @@
 # cryptomarket_intelligence_engine
-Access WebApp through following link: https://markliyx.github.io/cryptomarket_intelligence_engine/
 
 ## Motivation: 
 Accessing raw and fruitful crypto (currency and excahnges) data is hard due to high information asymmetry that leads to high cost or exclusivity; however, 
@@ -9,9 +8,5 @@ that, in comparision, makes the free version far away from being fruitful. Such 
 providers are alert about keeping such barrier; thus, being a "no namer" in the world of crypto-finance, I've decided to build, perhaps, a rather unsustainable 
 solution, mainly to satisfy my personal intellectual curiosity, using a special data science visualization library - streamlit. 
 
-## Functions: 
-**Data Fetching** - Scraps and caches their most up-to-date data on cryptocurrencies and crpto-exchanges (BeautifulSoup)
-**Sortable Data Table** -  
-
 ## Deomonstration: 
-
+Access WebApp through following link: https://markliyx.github.io/cryptomarket_intelligence_engine/
