@@ -5,7 +5,7 @@ Accessing raw and fruitful crypto (currency and excahnges) data is hard due to h
 to perform more personalized data visualization/ primary market research, the ability to access raw/ unfiltered data is crucial. Let's take "coinmarketcap.com" 
 for example. The websites profits from selling their API based on a freemium model; while their free version is accessible, their paid version has far more features 
 that, in comparision, makes the free version far away from being fruitful. Such problem/ barrier to access updated, raw data isn't novel to finance, and data service 
-providers are alert about keeping such barrier; thus, being a "no namer" in the world of crypto-finance, I've decided to build, perhaps, a rather unsustainable 
+providers are alert about keeping such barrier; thus, being a "no namer" in the world of DeFi, I've decided to build, perhaps, a rather unsustainable 
 solution, mainly to satisfy my personal intellectual curiosity, using a special data science visualization library - streamlit. 
 
 ## Deomonstration: 
